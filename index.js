@@ -1,7 +1,11 @@
-const express = require("express")
+const express = require("express");
+const fs = require("fs");
+const User = require("./user");
+const Property = require("./property");
+const Booking = require("./booking");
 const app = express();
 
-const fs = require("fs");
+
 
 // IMPORT/EXPORT EXAMPLE
 // const constants = require("./constants");
@@ -15,31 +19,9 @@ const fs = require("fs");
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 
-var users = new Array();
-var properties = new Array();
+//var users = new Array();
+//var properties = new Array();
 var bookings = new Array();
-
-app.post("/read/file", (req, res) => {
-    fs.readFile("./data/file.json", function(err, data) {
-        if (err) {
-            return res.status(500).json({message: "Unable to open file"});
-        }
-
-        var jsonFromString = JSON.parse(data);
-
-        jsonFromString.users.push({id: 1});
-
-        fs.writeFile("./data/file.json", JSON.stringify(jsonFromString), function(err) {
-            if (err) {
-                return res.status(500).json({message: "Unable to open file"});
-            } 
-
-            return res.status(200).json(jsonFromString);
-        });
-
-        // return res.status(200).json(jsonFromString);
-    });
-});
 
 
 // PUT USER INFO INTO ARRAY, RETURN USER INFO
@@ -68,30 +50,28 @@ app.post("/api/users", (req, res) => {
         return res.status(400).json({errorMessages: errors});
     }
 
-    let foundUser = null;
-    users.forEach((eachUser) => {
-        if(eachUser.email === bodyEmail) {
-            foundUser = eachUser;
+    User.getAllUsers((err, result) => {
+        for (var i = 0; i < result.length; i++) {
+            if(result[i].email == bodyEmail) {
+                return res.status(400).json({message: "Invalid request: Email already in use."});
+            }
         }
     });
-    if (foundUser != null) {
-        return res.status(400).json({message: "Invalid request: Email already in use."});
-    }
 
     var newUser = {
-        id: users.length + 1,
-        firstname: bodyFisrtname,
-        lastname: bodyLastname,
+        first_name: bodyFisrtname,
+        last_name: bodyLastname,
         email: bodyEmail,
         password: bodyPassword
     };
 
-    users.push(newUser);
-    res.json(newUser);
+    User.createUser(newUser, (err, result) => {
+        return res.status(200).json({id: result});
+    });
 });
 
 
-//RETURNS THE USER WITH THE ID AT THE END OF THE ADDRESS
+//RETURNS THE USER WITH THE GIVEN ID
 app.get("/api/users/:id", (req, res) => {
     const userId = req.params.id;
 
@@ -104,18 +84,18 @@ app.get("/api/users/:id", (req, res) => {
         return res.status(400).json({message: "Please pass in a user ID"})
     }
 
-    for (var k = 0; k < users.length; k++) {
-        const aUser = users[k];
-        if (aUser.id == userId) {
-            return res.status(200).json(aUser);
+    User.getUserById(userId, (err, result) => {
+        if (result[0] == null) {
+            return res.status(404).json ({message: "User not found"});
+        } else {
+            return res.status(200).json({user: result[0]});
         }
-    }
+    });
 
-    return res.status(404).json ({message: "User not found"});
 });
 
 
-//RETURNS A USER WITH A GIVEN ID
+//RETURNS A USER WITH A GIVEN USERNAME AND PASSWORD
 app.post("/api/users/authentication", (req, res) => {
     const user = req.body;
     const bodyEmail = user.email;
@@ -133,19 +113,16 @@ app.post("/api/users/authentication", (req, res) => {
         return res.status(400).json({errorMessages: errors});
     }
 
-    let foundUser = null;
-    users.forEach((eachUser) => {
-        if(eachUser.email === bodyEmail) {
-            if(eachUser.password === bodyPassword) {
-                foundUser = eachUser;
-            }
+
+    User.getUserByEmail(bodyEmail, (err, result) => {
+        if (result[0] == null) {
+            return res.status(404).json ({message: "Invalid E-mail or Password"});
+        } else if (result[0].password == bodyPassword) {
+            return res.status(200).json({user: result[0]});
+        } else {
+            return res.status(404).json ({message: "Invalid E-mail or Password"});
         }
     });
-    if(foundUser == null) {
-        return res.status(404).json ({message: "Invalid E-mail or Password"});
-    }
-    
-    res.json(foundUser);
 });
 
 
@@ -156,6 +133,7 @@ app.post("/api/properties", (req, res) => {
     const propertyLocation = property.location;
     const propertyImg = property.img;
     const propertyPrice = property.price;
+    const propertyUserId = property.user_id;
 
     var errors = [];
     if (!propertyName) {
@@ -170,21 +148,25 @@ app.post("/api/properties", (req, res) => {
     if (!propertyPrice) {
         errors.push({message: "Invalid request: Property price expected"})
     }
+    if (!propertyUserId) {
+        errors.push({message: "Invalid request: Property owner ID expected"})
+    }
 
     if (errors.length > 0) {
         return res.status(400).json({errorMessages: errors});
     }
 
     var newProperty = {
-        id: properties.length + 1,
         name: propertyName,
         location: propertyLocation,
         img: propertyImg,
-        price: propertyPrice
+        price: propertyPrice,
+        user_id: propertyUserId
     };
 
-    properties.push(newProperty);
-    res.json(newProperty);
+    Property.createProperty(newProperty, (err, result) => {
+        return res.status(200).json({id: result});
+    });
 });
 
 
@@ -201,14 +183,9 @@ app.delete("/api/properties/:id", (req, res) => {
         return res.status(400).json({message: "Please pass in a property ID"})
     }
 
-    for (var k = 0; k < properties.length; k++) {
-        if (properties[k].id == propertyId) {
-            properties.splice(k, 1);
-            return res.status(200).json({message: "ID deleted"});
-        }
-    }
-
-    return res.status(400).json({message: "Invalid ID"});
+    Property.delPropertyById(propertyId, (err, result) => {
+        return res.status(200).json({message: "Property Deleted"});
+    });
 });
 
 
@@ -225,14 +202,13 @@ app.get("/api/properties/:id", (req, res) => {
         return res.status(400).json({message: "Please pass in a property ID"})
     }
 
-    for (var k = 0; k < properties.length; k++) {
-        const aProperty = properties[k];
-        if (aProperty.id == propertyId) {
-            return res.status(200).json(aProperty);
+    Property.getPropertyById(propertyId, (err, result) => {
+        if (result[0] == null) {
+            return res.status(404).json ({message: "Property not found"});
+        } else {
+            return res.status(200).json({property: result[0]});
         }
-    }
-
-    return res.status(404).json ({message: "Property not found"});
+    });
 });
 
 
@@ -270,16 +246,16 @@ app.post("/api/properties/:id/bookings", (req, res) => {
     }
 
     var newBooking = {
-        id: bookings.length + 1,
-        dateFrom: bookingDateFrom,
-        dateTo: bookingDateTo,
-        userId: parseInt(bookingUserId),
-        propertyId: parseInt(bookingPropertyId),
+        date_from: bookingDateFrom,
+        date_to: bookingDateTo,
+        user_id: parseInt(bookingUserId),
+        property_id: parseInt(bookingPropertyId),
         status: "NEW"
     };
 
-    bookings.push(newBooking);
-    res.json(newBooking);
+    Booking.createBooking(newBooking, (err, result) => {
+        return res.status(200).json({id: result});
+    });
 });
 
 
@@ -296,27 +272,35 @@ app.get("/api/properties/:id/bookings", (req, res) => {
         return res.status(400).json({message: "Please pass in a property ID"})
     }
 
-    var validBookings = new Array();
-
-    for (var k = 0; k < bookings.length; k++) {
-        const aBooking = bookings[k];
-        if (aBooking.propertyId == propertyId) {
-            validBookings.push(aBooking);
+    Booking.getBookingByPropertyId(propertyId, (err, result) => {
+        if (result[0] == null) {
+            return res.status(404).json ({message: "No bookings found for this property"});
+        } else {
+            return res.status(200).json({user: result});
         }
-    }
+    });
 
-    if (validBookings.length < 1) {
-        return res.status(200).json({message: "No Bookings found for this property ID"})
-    }
+    // var validBookings = new Array();
 
-    res.json(validBookings);
+    // for (var k = 0; k < bookings.length; k++) {
+    //     const aBooking = bookings[k];
+    //     if (aBooking.propertyId == propertyId) {
+    //         validBookings.push(aBooking);
+    //     }
+    // }
+
+    // if (validBookings.length < 1) {
+    //     return res.status(200).json({message: "No Bookings found for this property ID"})
+    // }
+
+    // res.json(validBookings);
 });
 
-const PropertyRouter = express.Router();
-PropertyRouter.post("/api/properties", (req, res) => {
-    res. send("POST Properties api");
-});
-app.use("/parent", PropertyRouter);
+// const PropertyRouter = express.Router();
+// PropertyRouter.post("/api/properties", (req, res) => {
+//     res. send("POST Properties api");
+// });
+// app.use("/parent", PropertyRouter);
 
 app.listen(3000, () =>{
     console.log("Server is running");
