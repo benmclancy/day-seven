@@ -37,6 +37,19 @@ Property.delPropertyById = function(propertyId, result) {
 };
 
 
+//GET ALL PROPERTY
+Property.getAllProperties = function(result) {
+    mysqlConn.query("Select * from properties", function( err, res) {
+        if (err) {
+            console.log("error: ", err);
+            result(err, null);
+        } else {
+            result(null, res)
+        }
+    });
+};
+
+
 //GET PROPERTY BY ID
 Property.getPropertyById = function(propertyId, result) {
     mysqlConn.query("Select * from properties where id = ? ", propertyId, function( err, res) {

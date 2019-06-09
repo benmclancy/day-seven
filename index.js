@@ -4,27 +4,16 @@ const User = require("./user");
 const Property = require("./property");
 const Booking = require("./booking");
 const app = express();
+const cors = require('cors');
 
 
-
-// IMPORT/EXPORT EXAMPLE
-// const constants = require("./constants");
-// console.log(constants);
-
-// const ValidationService = require("./validation-service");
-// const valServ = new ValidationService();
-// console.log(valServ);
-// console.log(ValidationService);
-
+app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 
-//var users = new Array();
-//var properties = new Array();
-var bookings = new Array();
 
 
-// PUT USER INFO INTO ARRAY, RETURN USER INFO
+// ADDS USER TO DATABASE
 app.post("/api/users", (req, res) => {
     const user = req.body;
     const bodyFisrtname = user.firstname;
@@ -95,7 +84,7 @@ app.get("/api/users/:id", (req, res) => {
 });
 
 
-//RETURNS A USER WITH A GIVEN USERNAME AND PASSWORD
+//RETURNS A USER WITH THE GIVEN USERNAME AND PASSWORD
 app.post("/api/users/authentication", (req, res) => {
     const user = req.body;
     const bodyEmail = user.email;
@@ -126,7 +115,7 @@ app.post("/api/users/authentication", (req, res) => {
 });
 
 
-//PUT PROPERTY INFO INTO ARRAY, RETURN PROPERTY INFO
+//ADDS PROPERTY TO DATABASE
 app.post("/api/properties", (req, res) => {
     const property = req.body;
     const propertyName = property.name;
@@ -170,7 +159,7 @@ app.post("/api/properties", (req, res) => {
 });
 
 
-//REMOVE A PROPERTY WITH A GIVEN ID
+//REMOVE THE PROPERTY WITH THE GIVEN ID
 app.delete("/api/properties/:id", (req, res) => {
     const propertyId = req.params.id;
 
@@ -189,7 +178,7 @@ app.delete("/api/properties/:id", (req, res) => {
 });
 
 
-//RETURNS A PROPERTY WITH A GIVEN ID
+//RETURNS THE PROPERTY WITH THE GIVEN ID
 app.get("/api/properties/:id", (req, res) => {
     const propertyId = req.params.id;
 
@@ -212,7 +201,20 @@ app.get("/api/properties/:id", (req, res) => {
 });
 
 
-//PUT BOOKING INFO INTO ARRAY, RETURN BOOKING INFO
+//RETURNS ALL PROPERTIES
+app.get("/api/properties", (req, res) => {
+
+    Property.getAllProperties((err, result) => {
+        if (result == null) {
+            return res.status(404).json ({message: "Property not found"});
+        } else {
+            return res.status(200).json({result});
+        }
+    });
+});
+
+
+//ADDS BOOKING TO DATABASE
 app.post("/api/properties/:id/bookings", (req, res) => {
     const bookingPropertyId = req.params.id;
 
@@ -279,28 +281,7 @@ app.get("/api/properties/:id/bookings", (req, res) => {
             return res.status(200).json({user: result});
         }
     });
-
-    // var validBookings = new Array();
-
-    // for (var k = 0; k < bookings.length; k++) {
-    //     const aBooking = bookings[k];
-    //     if (aBooking.propertyId == propertyId) {
-    //         validBookings.push(aBooking);
-    //     }
-    // }
-
-    // if (validBookings.length < 1) {
-    //     return res.status(200).json({message: "No Bookings found for this property ID"})
-    // }
-
-    // res.json(validBookings);
 });
-
-// const PropertyRouter = express.Router();
-// PropertyRouter.post("/api/properties", (req, res) => {
-//     res. send("POST Properties api");
-// });
-// app.use("/parent", PropertyRouter);
 
 app.listen(3000, () =>{
     console.log("Server is running");
